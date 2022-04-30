@@ -1,3 +1,5 @@
+from tkinter.messagebox import showinfo
+
 import serial #Importation de la bibliothèque « pySerial »
 import serial.tools.list_ports
 import tkinter as tk
@@ -34,13 +36,57 @@ class Application(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.geometry("1200x720")
-        self.creer_widgets()
+        self.resizable(width=False, height=False)
+        self.iconbitmap('../img/logo.ico')
 
-    def creer_widgets(self):
-        self.titleToScreen = tk.Label(self, text="RAMMUS", justify=CENTER, pady=100, font=("Helvetica", 50))
-        self.bouton = tk.Button(self, text="Quitter", command=self.quit)
-        self.titleToScreen.pack()
-        self.bouton.pack()
+        self.canvas = Canvas(self, width=1000, height=500, background='ivory')
+        self.barreParametre = Frame(height=720,width=200, bg='grey',)
+        self.barreControle = Frame(height=220,width=1000, background='grey')
+
+        self.menuBar = Menu(self)
+        menuFile = Menu(self.menuBar, tearoff=0)
+        menuFile.add_command(label="New", command=self.alert)
+        menuFile.add_command(label="Open", command=self.alert)
+        menuFile.add_command(label="Save Config", command=self.alert)
+        menuFile.add_separator()
+        menuFile.add_command(label="Quitter", command=self.quit)
+
+        menuEdit = Menu(self.menuBar, tearoff=0)
+        menuEdit.add_command(label="Mode Automatique", command=self.alert)
+        menuEdit.add_command(label="Mode Manuel", command=self.alert)
+
+        menuScan = Menu(self.menuBar, tearoff=0)
+        menuScan.add_command(label="Run", command=self.alert)
+        menuScan.add_command(label="Stop", command=self.alert)
+        menuScan.add_command(label="Export Room", command=self.alert)
+
+        self.menuBar.add_cascade(label="Fichier", menu=menuFile)
+        self.menuBar.add_cascade(label="Edit", menu=menuEdit)
+        self.menuBar.add_cascade(label="Scan", menu=menuScan)
+
+        self.initialisationDesWidgets()
+
+    def initialisationDesWidgets(self):
+        self.barreParametre.grid(row=0, column=1, sticky='e', rowspan=2)
+        self.canvas.grid(row=0, column=0, sticky='n')
+        self.barreControle.grid(row=1, column=0, sticky='n')
+        """ 
+        -----  POUR PLUS TARD (Redimensionnement dynamique) ----- 
+        
+        self.grid_columnconfigure(0,weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        
+        """
+        self.config(menu=self.menuBar, bg='black')
+
+
+    def ouvrirParam(self):
+        self.canvas["width"] = 200
+
+    def alert(self):
+        showinfo("alerte", "Bravo!")
 
 
 if __name__ == "__main__":
