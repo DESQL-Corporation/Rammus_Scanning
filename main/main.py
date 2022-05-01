@@ -36,7 +36,7 @@ class Application(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self.geometry("1200x720")
-        self.resizable(width=False, height=False)
+        #self.resizable(width=False, height=False)
         self.iconbitmap('../img/logo.ico')
 
         self.canvas = Canvas(self, width=1000, height=500, background='ivory')
@@ -44,6 +44,26 @@ class Application(tk.Tk):
         self.barreControle = Frame(height=220,width=1000, background='grey')
 
         self.menuBar = Menu(self)
+
+        self.initialisationMenu()
+        self.initialisationDesWidgets()
+
+    def initialisationDesWidgets(self):
+        self.barreParametre.grid(row=0, column=1, sticky='e', rowspan=2)
+        self.canvas.grid(row=0, column=0, sticky='n')
+        self.barreControle.grid(row=1, column=0, sticky='n')
+
+        """ 
+        -----  POUR PLUS TARD (Redimensionnement dynamique) ----- 
+        
+        self.grid_columnconfigure(0,weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        
+        """
+
+    def initialisationMenu(self):
         menuFile = Menu(self.menuBar, tearoff=0)
         menuFile.add_command(label="New", command=self.alert)
         menuFile.add_command(label="Open", command=self.alert)
@@ -64,23 +84,7 @@ class Application(tk.Tk):
         self.menuBar.add_cascade(label="Edit", menu=menuEdit)
         self.menuBar.add_cascade(label="Scan", menu=menuScan)
 
-        self.initialisationDesWidgets()
-
-    def initialisationDesWidgets(self):
-        self.barreParametre.grid(row=0, column=1, sticky='e', rowspan=2)
-        self.canvas.grid(row=0, column=0, sticky='n')
-        self.barreControle.grid(row=1, column=0, sticky='n')
-        """ 
-        -----  POUR PLUS TARD (Redimensionnement dynamique) ----- 
-        
-        self.grid_columnconfigure(0,weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1)
-        
-        """
         self.config(menu=self.menuBar, bg='black')
-
 
     def ouvrirParam(self):
         self.canvas["width"] = 200
@@ -88,8 +92,19 @@ class Application(tk.Tk):
     def alert(self):
         showinfo("alerte", "Bravo!")
 
+    def initalisationBarreControle(self):
+
+        Button(self.barreControle, text=" Start Scanning", command=self.alert, image=imgStart, compound=LEFT).grid(row=0,column=0)
+        Button(self.barreControle, text=" Pause Scanning", command=self.alert, image=imgPause, compound=LEFT).grid(row=0, column=1)
+        Button(self.barreControle, text=" Stop Scanning", command=self.alert, image=imgStop, compound=LEFT).grid(row=0, column=2)
+        ConteneurInfos = Frame(self.barreControle, background="grey", height=180, width=1000)
+        ConteneurInfos.grid(row=1, column=0,columnspan=3)
 
 if __name__ == "__main__":
     app = Application()
     app.title("Rammus Scanning")
+    imgStart = PhotoImage(file="../img/appContent/start.png").subsample(20, 20)
+    imgStop = PhotoImage(file="../img/appContent/stop.png").subsample(8, 8)
+    imgPause = PhotoImage(file="../img/appContent/pause.png").subsample(38, 38)
+    app.initalisationBarreControle()
     app.mainloop()
