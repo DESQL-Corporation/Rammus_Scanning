@@ -39,7 +39,6 @@ class Application(tk.Tk):
         self.grid()
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
-
         self.canvas = Canvas(self, background='ivory')
         self.barreControle = Frame(self, background='grey')
 
@@ -47,16 +46,16 @@ class Application(tk.Tk):
         self.caseEtat = Frame(self.barreControle, background="cyan")
 
         '''     INITIALISATION DES BOUTONS DE LA BARRE DE CONTROLE     '''
-        self.boutonStart = Button(self.barreControle, text="Start Scanning", fg="green", command=self.alert)
-        self.boutonPause = Button(self.barreControle, text="Pause Scanning", fg="orange", command=self.alert)
-        self.boutonStop = Button(self.barreControle, text="Stop Scanning", fg="red", command=self.alert)
-        self.boutonManuel = Button(self.barreControle, text="Mode Manuel", command=self.alert, state=DISABLED)
+        self.boutonStart = Button(self.barreControle, text="Start Scanning", fg="green", command=self.startModeAutomatique)
+        self.boutonPause = Button(self.barreControle, text="Pause Scanning", fg="orange", command=self.pauseModeAutomatique, state=DISABLED)
+        self.boutonStop = Button(self.barreControle, text="Stop Scanning", fg="red", command=self.stopModeAutomatique, state=DISABLED)
+        self.boutonManuel = Button(self.barreControle, text="Mode Manuel", command=self.clilcModeManuel, background="red")
         self.boutonAvancer = Button(self.barreControle, text="Avancer", command=self.alert, state=DISABLED)
         self.boutonDroite = Button(self.barreControle, text="Tourner à droite", command=self.alert, state=DISABLED)
         self.boutonGauche = Button(self.barreControle, text="Tourner à gauche", command=self.alert, state=DISABLED)
 
         '''     INITIALISATION DES ZONES DE TEXTES DE LA BARRE DE CONTROLE    '''
-        self.labelTempsRun = Label(self.barreControle, text="Time : 00.00.00")
+        self.labelTempsRun = Label(self.barreControle, text="Temps : 00.00.00", background="gray")
         self.labelCommandeAutomatique = Label(self.barreControle, text="Commande Automatique", fg="black", bg="gray")
         self.labelCommandeManuelle = Label(self.barreControle, text="Commande Manuelle", fg="black", bg="gray")
 
@@ -70,7 +69,7 @@ class Application(tk.Tk):
         self.boutonDroite.grid(row=3, column=3, pady=5, sticky='N')
 
         self.labelTempsRun.grid(row=1, column=3, padx=20, pady=5, sticky='N')
-        self.caseEtat.grid(row=0, column=4, rowspan=4, padx=20, pady=5, sticky='NEWS')
+        self.caseEtat.grid(row=0, column=4, rowspan=4, sticky='NEWS')
         self.labelCommandeAutomatique.grid(row=0, column=0, columnspan=4, sticky='S')
         self.labelCommandeManuelle.grid(row=2, column=0, columnspan=4, sticky='S')
 
@@ -127,6 +126,52 @@ class Application(tk.Tk):
 
         self.config(menu=self.menuBar, bg='black')
 
+    def startModeAutomatique(self):
+        self.labelTempsRun["text"] = "Temps 10.00.00"
+
+        '''    MISE A JOUR GRAPHIQUE   '''
+        self.boutonStart["state"] = DISABLED
+        self.boutonStop["state"] = ACTIVE
+        self.boutonPause["state"] = ACTIVE
+        self.boutonManuel["state"] = DISABLED
+
+    def pauseModeAutomatique(self):
+        self.labelTempsRun["text"] = "Temps 10.00.00"
+
+        '''    MISE A JOUR GRAPHIQUE   '''
+        self.boutonStart["state"] = ACTIVE
+        self.boutonStop["state"] = ACTIVE
+        self.boutonPause["state"] = DISABLED
+
+    def stopModeAutomatique(self):
+        self.labelTempsRun["text"] = "Temps 10.00.00"
+
+        '''    MISE A JOUR GRAPHIQUE   '''
+        self.boutonStart["state"] = ACTIVE
+        self.boutonStop["state"] = DISABLED
+        self.boutonPause["state"] = DISABLED
+        self.boutonManuel["state"] = ACTIVE
+
+    def clilcModeManuel(self):
+        if self.boutonManuel["background"] == "red":
+
+            '''    MISE A JOUR GRAPHIQUE   '''
+            self.boutonManuel["background"] = "green"
+            self.boutonAvancer["state"] = ACTIVE
+            self.boutonGauche["state"] = ACTIVE
+            self.boutonDroite["state"] = ACTIVE
+            self.boutonStart["state"] = DISABLED
+            self.boutonStop["state"] = DISABLED
+            self.boutonPause["state"] = DISABLED
+
+        else:
+
+            '''    MISE A JOUR GRAPHIQUE   '''
+            self.boutonManuel["background"] = "red"
+            self.boutonAvancer["state"] = DISABLED
+            self.boutonGauche["state"] = DISABLED
+            self.boutonDroite["state"] = DISABLED
+            self.boutonStart["state"] = ACTIVE
 
 if __name__ == "__main__":
     app = Application()
