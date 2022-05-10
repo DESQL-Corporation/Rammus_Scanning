@@ -43,7 +43,7 @@ class Application(tk.Tk):
         self.barreControle = Frame(self, background='grey')
 
         '''     INITIALISATION DE LA CASE ETAT DE LA BARRE DE CONTROLE      '''
-        self.caseEtat = Frame(self.barreControle, background="cyan")
+        self.caseEtat = Frame(self.barreControle, background="black")
 
         '''     INITIALISATION DES BOUTONS DE LA BARRE DE CONTROLE     '''
         self.boutonStart = Button(self.barreControle, text="Start Scanning", fg="green", command=self.startModeAutomatique)
@@ -104,14 +104,9 @@ class Application(tk.Tk):
         menuFile.add_command(label="New", command=self.alert)
         menuFile.add_command(label="Open", command=self.alert)
         menuFile.add_command(label="Change Config", command=self.alert)
+        menuFile.add_command(label="Paramètres Robot", command=self.alert)
         menuFile.add_separator()
         menuFile.add_command(label="Quitter", command=self.quit)
-
-        menuEdit = Menu(self.menuBar, tearoff=0)
-        menuEdit.add_command(label="Mode Automatique", command=self.alert)
-        menuEdit.add_command(label="Mode Manuel", command=self.alert)
-        menuEdit.add_separator()
-        menuEdit.add_command(label="Paramètres Robot", command=self.alert)
 
         menuScan = Menu(self.menuBar, tearoff=0)
         menuScan.add_command(label="Run", command=self.alert)
@@ -121,7 +116,6 @@ class Application(tk.Tk):
         menuScan.add_command(label="Export Room", command=self.alert)
 
         self.menuBar.add_cascade(label="  Window  ", menu=menuFile)
-        self.menuBar.add_cascade(label="  Edit  ", menu=menuEdit)
         self.menuBar.add_cascade(label="  Scan  ", menu=menuScan)
 
         self.config(menu=self.menuBar, bg='black')
