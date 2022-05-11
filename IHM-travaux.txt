@@ -1,0 +1,8 @@
+- Canvas
+- Emission
+
+- Faire le bloc de statut en bas à droite : 
+Etat de la connexion (led rouge/verte), Etat de l'algo (EN ATTENTE, EN COURS, ARRETE, ERREUR, TERMINER)
+Port de connexion, Fréquence, (position actuelle du robot.)
+
+- Dans le menu Edit, pouvoir changer le port de Com --> Zone de texte

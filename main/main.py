@@ -1,22 +1,28 @@
 from tkinter.messagebox import showinfo
 
+import sys
 import serial  # Importation de la bibliothèque « pySerial »
 import serial.tools.list_ports
 import tkinter as tk
 from tkinter import *
+from threading import Thread
+from time import sleep
 
-"""
+SERIALPORT = 'COM4'
+BAUDRATE = 9600
 
-def ouvrir_liaisonArduino(com_arduino):
+
+def ouvrir_liaisonArduino():
     print("Recherche d'un port serie...")
-    com_arduino = serial.Serial(Choix du port, Choix du debit, timeout=1)
+    com_arduino = serial.Serial(port=SERIALPORT, baudrate=BAUDRATE, timeout=1)
+    # com_arduino.open()
+    return com_arduino
 
 
-def recpetionArduino(com_arduino, line):
-    print("Lecture sur la liaison serie...")
-    x = com_arduino.read()  # copie d’un caractere lu dans la variable « x »
-    s = com_arduino.read(10)  # copie de 10 caracteres lu dans la variable « s »
+def recpetionArduino(com_arduino):
+    print("Lecture sur la liaison serie...\n")
     line = com_arduino.readline()  # copie d’une ligne entiere jusqu’a \n dans « line »
+    return line
 
 
 def emissionArduino(com_arduino, message):
@@ -28,8 +34,6 @@ def fermer_liaisonArduino(com_arduino):
     print("Fermeture de la liaison serie...")
     com_arduino.close()  # Cloture du port pour le cas ou il serait déjà ouvert ailleurs
 
-"""
-
 
 class Application(tk.Tk):
     def __init__(self):
@@ -38,8 +42,11 @@ class Application(tk.Tk):
         self.iconbitmap('../img/logo.ico')
         self.grid()
 
+        self.com, self.recept, self.thread = None, None, None
+
         self.affichageVertical = False
         self.modeAutomatique = True
+        self.stop = True
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
         self.canvas = Canvas(self, background='ivory')
@@ -51,8 +58,10 @@ class Application(tk.Tk):
 
         '''     INITIALISATION DES BOUTONS DE LA BARRE DE CONTROLE     '''
         self.boutonStart = Button(self.telecomande, text="Démarrer", fg="green", command=self.startModeAutomatique)
-        self.boutonPause = Button(self.telecomande, text="Mettre en Pause", fg="orange", command=self.pauseModeAutomatique, state=DISABLED)
-        self.boutonStop = Button(self.telecomande, text="Stopper", fg="red", command=self.stopModeAutomatique, state=DISABLED)
+        self.boutonPause = Button(self.telecomande, text="Mettre en Pause", fg="orange",
+                                  command=self.pauseModeAutomatique, state=DISABLED)
+        self.boutonStop = Button(self.telecomande, text="Stopper", fg="red", command=self.stopModeAutomatique,
+                                 state=DISABLED)
         self.boutonAvancer = Button(self.telecomande, text="Avancer", command=self.alert, state=DISABLED)
         self.boutonDroite = Button(self.telecomande, text="Tourner à droite", command=self.alert, state=DISABLED)
         self.boutonGauche = Button(self.telecomande, text="Tourner à gauche", command=self.alert, state=DISABLED)
@@ -66,8 +75,6 @@ class Application(tk.Tk):
 
         self.canvas.grid(row=0, column=0, sticky='NEWS')
 
-
-
         '''      CONFIGURATION DES LIGNES & COLONES DE LA BARRE DE CONTROLE      '''
         self.passageConfigHorizontale()
 
@@ -78,10 +85,39 @@ class Application(tk.Tk):
     def alert(self):
         showinfo("alerte", "Bravo!")
 
+    def alertPerso(self, message):
+        showinfo("alerte", message)
+
+    def connexionRobot(self, fileMenu):
+        if self.stop:
+            try:
+                self.com = ouvrir_liaisonArduino()
+                self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
+                self.thread.start()
+                self.stop = False
+                fileMenu.entryconfigure(1, label="Se déconnecter")
+            except:
+                print(sys.exc_info()[0])
+                self.alertPerso(message="Impossible de se connecter")
+        else:
+            self.stop = True
+            fileMenu.entryconfigure(1, label="Se conencter")
+
+    def recupDonnee(self,fileMenu):
+        while not self.stop:
+            try:
+                self.recept = recpetionArduino(self.com)
+                print(self.recept)
+            except:
+                print(sys.exc_info()[0])
+                self.alertPerso(message="Erreur de connexion")
+                self.stop = True
+                fileMenu.entryconfigure(1, label="Se conencter")
+
     def initialisationMenu(self):
         menuFile = Menu(self.menuBar, tearoff=0)
         menuFile.add_command(label="Nouveau", command=self.alert)
-        menuFile.add_command(label="Connecter", command=self.alert)
+        menuFile.add_command(label="Se connecter", command=lambda: self.connexionRobot(menuFile))
         menuFile.add_command(label="Changer Configuration", command=self.changementConfig)
         menuFile.add_separator()
         menuFile.add_command(label="Quitter", command=self.quit)
@@ -110,9 +146,9 @@ class Application(tk.Tk):
         self.boutonPause.grid_forget()
         self.boutonStop.grid_forget()
         if self.affichageVertical:
-            self.boutonAvancer.grid(row=1,column=0, pady=5, sticky='N')
-            self.boutonGauche.grid(row=2,column=0, pady=5, sticky='N')
-            self.boutonDroite.grid(row=3,column=0, pady=5, sticky='N')
+            self.boutonAvancer.grid(row=1, column=0, pady=5, sticky='N')
+            self.boutonGauche.grid(row=2, column=0, pady=5, sticky='N')
+            self.boutonDroite.grid(row=3, column=0, pady=5, sticky='N')
         else:
             self.boutonAvancer.grid(row=1, column=0, pady=5, sticky='N')
             self.boutonGauche.grid(row=1, column=1, pady=5, sticky='N')
@@ -126,13 +162,13 @@ class Application(tk.Tk):
         self.boutonGauche.grid_forget()
         self.boutonDroite.grid_forget()
         if self.affichageVertical:
-            self.boutonStart.grid(row=1,column=0, pady=5, sticky='N')
-            self.boutonPause.grid(row=2,column=0, pady=5, sticky='N')
-            self.boutonStop.grid(row=3,column=0, pady=5, sticky='N')
+            self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
+            self.boutonPause.grid(row=2, column=0, pady=5, sticky='N')
+            self.boutonStop.grid(row=3, column=0, pady=5, sticky='N')
         else:
-            self.boutonStart.grid(row=1, column=0,  pady=5, sticky='N')
-            self.boutonPause.grid(row=1, column=1,  pady=5, sticky='N')
-            self.boutonStop.grid(row=1, column=2,  pady=5, sticky='N')
+            self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
+            self.boutonPause.grid(row=1, column=1, pady=5, sticky='N')
+            self.boutonStop.grid(row=1, column=2, pady=5, sticky='N')
         self.labelCommande["text"] = "Commande Automatique"
 
         self.modeAutomatique = True
@@ -215,7 +251,6 @@ class Application(tk.Tk):
         self.boutonStart["state"] = DISABLED
         self.boutonStop["state"] = ACTIVE
         self.boutonPause["state"] = ACTIVE
-        #self.boutonManuel["state"] = DISABLED
 
     def pauseModeAutomatique(self):
         self.labelTempsRun["text"] = "Temps 10.00.00"
@@ -232,30 +267,10 @@ class Application(tk.Tk):
         self.boutonStart["state"] = ACTIVE
         self.boutonStop["state"] = DISABLED
         self.boutonPause["state"] = DISABLED
-        #self.boutonManuel["state"] = ACTIVE
 
-'''
-    def clilcModeManuel(self):
-        if self.boutonManuel["background"] == "red":
-            
-            self.boutonManuel["background"] = "green"
-            self.boutonAvancer["state"] = ACTIVE
-            self.boutonGauche["state"] = ACTIVE
-            self.boutonDroite["state"] = ACTIVE
-            self.boutonStart["state"] = DISABLED
-            self.boutonStop["state"] = DISABLED
-            self.boutonPause["state"] = DISABLED
-
-        else:
-
-            self.boutonManuel["background"] = "red"
-            self.boutonAvancer["state"] = DISABLED
-            self.boutonGauche["state"] = DISABLED
-            self.boutonDroite["state"] = DISABLED
-            self.boutonStart["state"] = ACTIVE
-'''
 
 if __name__ == "__main__":
     app = Application()
     app.title("Rammus Scanning")
+
     app.mainloop()
