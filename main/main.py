@@ -1,3 +1,4 @@
+import time
 from tkinter.messagebox import showinfo
 
 import sys
@@ -6,33 +7,28 @@ import serial.tools.list_ports
 import tkinter as tk
 from tkinter import *
 from threading import Thread
-from time import sleep
 
-SERIALPORT = 'COM4'
+import ecranChargement
+
+SERIALPORT_RECEP = 'COM4'
+SERIALPORT_ENV = 'COM3'
 BAUDRATE = 9600
 
 
-def ouvrir_liaisonArduino():
+def ouvrir_liaisonArduino(SERIALPORT):
     print("Recherche d'un port serie...")
     com_arduino = serial.Serial(port=SERIALPORT, baudrate=BAUDRATE, timeout=1)
-    # com_arduino.open()
     return com_arduino
 
 
 def recpetionArduino(com_arduino):
-    print("Lecture sur la liaison serie...\n")
     line = com_arduino.readline()  # copie d’une ligne entiere jusqu’a \n dans « line »
     return line
 
 
 def emissionArduino(com_arduino, message):
-    print("Ecriture sur la liaison serie...")
-    com_arduino.write(message)
-
-
-def fermer_liaisonArduino(com_arduino):
-    print("Fermeture de la liaison serie...")
-    com_arduino.close()  # Cloture du port pour le cas ou il serait déjà ouvert ailleurs
+    print("Env : ", message)
+    com_arduino.write(str.encode(message))
 
 
 class Application(tk.Tk):
@@ -42,15 +38,19 @@ class Application(tk.Tk):
         self.iconbitmap('../img/logo.ico')
         self.grid()
 
-        self.com, self.recept, self.thread = None, None, None
+        self.comRecep, self.comEnv, self.recept, self.thread, self.touche = None, None, None, None, '-1'
 
         self.affichageVertical = False
         self.modeAutomatique = True
         self.stop = True
+        self.nouvelleTouche = True
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
         self.canvas = Canvas(self, background='ivory')
         self.barreControle = Frame(self, background='grey')
+        self.canvas.focus_set()
+        self.canvas.bind("<KeyPress>", self.clavier)
+        self.canvas.bind("<KeyRelease>", self.resetTouche)
 
         '''     INITIALISATION DE LA CASE ETAT DE LA BARRE DE CONTROLE      '''
         self.caseEtat = Frame(self.barreControle, background="black")
@@ -91,7 +91,8 @@ class Application(tk.Tk):
     def connexionRobot(self, fileMenu):
         if self.stop:
             try:
-                self.com = ouvrir_liaisonArduino()
+                self.comRecep = ouvrir_liaisonArduino(SERIALPORT_RECEP)
+                self.comEnv = ouvrir_liaisonArduino(SERIALPORT_ENV)
                 self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
                 self.thread.start()
                 self.stop = False
@@ -103,16 +104,22 @@ class Application(tk.Tk):
             self.stop = True
             fileMenu.entryconfigure(1, label="Se conencter")
 
-    def recupDonnee(self,fileMenu):
+    def recupDonnee(self, fileMenu):
+        self.canvas.focus_set()
+        self.canvas.bind("<Key>", self.clavier)
+        self.touche = '4'
         while not self.stop:
             try:
-                self.recept = recpetionArduino(self.com)
-                print(self.recept)
+                self.recept = recpetionArduino(self.comRecep)
+                print(self.stop, " : ", self.recept)
             except:
                 print(sys.exc_info()[0])
                 self.alertPerso(message="Erreur de connexion")
                 self.stop = True
-                fileMenu.entryconfigure(1, label="Se conencter")
+                fileMenu.entryconfigure(1, label="Se connecter")
+
+        self.comRecep.close()
+        self.comEnv.close()
 
     def initialisationMenu(self):
         menuFile = Menu(self.menuBar, tearoff=0)
@@ -268,9 +275,25 @@ class Application(tk.Tk):
         self.boutonStop["state"] = DISABLED
         self.boutonPause["state"] = DISABLED
 
+    def clavier(self, event):
+        self.touche = event.keysym
+        if self.nouvelleTouche:
+            if self.touche == "1" or self.touche == "2" or self.touche == "3" or self.touche == "4" or self.touche == "0":
+                emissionArduino(self.comEnv, str(self.touche))
+                self.nouvelleTouche = False
+
+    def resetTouche(self,event):
+        self.touche='4'
+        self.nouvelleTouche = True
+        emissionArduino(self.comEnv, str(self.touche))
+
+    def fermer(self):
+        self.destroy()
+        self.stop = True
 
 if __name__ == "__main__":
     app = Application()
     app.title("Rammus Scanning")
-
+    # EcranChargement = ecranChargement.EcranChargement()
+    # ecranChargement.mainloop()
     app.mainloop()
