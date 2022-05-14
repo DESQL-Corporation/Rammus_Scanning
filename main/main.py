@@ -13,6 +13,7 @@ import ecranChargement
 SERIALPORT_RECEP = 'COM4'
 SERIALPORT_ENV = 'COM3'
 BAUDRATE = 9600
+photo = None
 
 
 def ouvrir_liaisonArduino(SERIALPORT):
@@ -39,11 +40,11 @@ class Application(tk.Tk):
         self.grid()
 
         self.comRecep, self.comEnv, self.recept, self.thread, self.touche = None, None, None, None, '-1'
-
         self.affichageVertical = False
         self.modeAutomatique = True
         self.stop = True
         self.nouvelleTouche = True
+        self.serialPortString = SERIALPORT_ENV
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
         self.canvas = Canvas(self, background='ivory')
@@ -53,26 +54,29 @@ class Application(tk.Tk):
         self.canvas.bind("<KeyRelease>", self.resetTouche)
 
         '''     INITIALISATION DE LA CASE ETAT DE LA BARRE DE CONTROLE      '''
-        self.caseEtat = Frame(self.barreControle, background="black")
+        self.caseEtat = Frame(self.barreControle, background="white")
         self.telecomande = Frame(self.barreControle, background="grey")
 
-        '''     INITIALISATION DES BOUTONS DE LA BARRE DE CONTROLE     '''
+        '''     INITIALISATION DES BOUTONS DE LA TELECOMANDE     '''
         self.boutonStart = Button(self.telecomande, text="Démarrer", fg="green", command=self.startModeAutomatique)
         self.boutonPause = Button(self.telecomande, text="Mettre en Pause", fg="orange",
                                   command=self.pauseModeAutomatique, state=DISABLED)
         self.boutonStop = Button(self.telecomande, text="Stopper", fg="red", command=self.stopModeAutomatique,
                                  state=DISABLED)
-        self.boutonAvancer = Button(self.telecomande, text="Avancer", command=self.alert, state=DISABLED)
-        self.boutonDroite = Button(self.telecomande, text="Tourner à droite", command=self.alert, state=DISABLED)
-        self.boutonGauche = Button(self.telecomande, text="Tourner à gauche", command=self.alert, state=DISABLED)
 
         '''     INITIALISATION DES ZONES DE TEXTES DE LA BARRE DE CONTROLE    '''
         self.labelTempsRun = Label(self.telecomande, text="Temps : 00.00.00", background="gray")
         self.labelCommande = Label(self.telecomande, text="Commande Automatique", fg="black", bg="gray")
+        self.labelManuel = Label(self.telecomande, text="Utilisez les flèches directionnelles pour contrôler le robot",fg="black", bg="gray")
+
+        '''     INITIALISATION DES ZONES DE TEXTES DE LA CASE D'ETAT    '''
+        self.labelEtatConnexion = Label(self.caseEtat, text="Etat de la connexion : déconnecté", bg="white")
+        self.labelEtatScan = Label(self.caseEtat, text="Etat du scan : en attente", bg="white")
+        self.labelPort = Label(self.caseEtat, text="Port Actuel : COM3", bg="white")
+        self.labelFreqDenvoie = Label(self.caseEtat, text="Fréquence d'émission : 9600", bg="white")
 
         '''     PLACEMENT DES ELEMENTS SUR LA FENETRE    '''
         self.passageModeAuto()
-
         self.canvas.grid(row=0, column=0, sticky='NEWS')
 
         '''      CONFIGURATION DES LIGNES & COLONES DE LA BARRE DE CONTROLE      '''
@@ -89,10 +93,11 @@ class Application(tk.Tk):
         showinfo("alerte", message)
 
     def connexionRobot(self, fileMenu):
+        # Thread(target=ecranChargement.start(photo)).start()
         if self.stop:
             try:
                 self.comRecep = ouvrir_liaisonArduino(SERIALPORT_RECEP)
-                self.comEnv = ouvrir_liaisonArduino(SERIALPORT_ENV)
+                self.comEnv = ouvrir_liaisonArduino(self.serialPortString)
                 self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
                 self.thread.start()
                 self.stop = False
@@ -133,7 +138,7 @@ class Application(tk.Tk):
         menuEdit.add_command(label="Mode Automatique", command=self.passageModeAuto)
         menuEdit.add_command(label="Mode Manuel", command=self.passageModeManuel)
         menuEdit.add_separator()
-        menuEdit.add_command(label="Paramètres Robot", command=self.alert)
+        menuEdit.add_command(label="Changer le port de connexion", command=self.changerPort)
 
         menuScan = Menu(self.menuBar, tearoff=0)
         menuScan.add_command(label="Run", command=self.alert)
@@ -148,34 +153,49 @@ class Application(tk.Tk):
 
         self.config(menu=self.menuBar, bg='black')
 
+    def changerPort(self):
+        fenetre = tk.Toplevel()
+        fenetre.resizable(width=False, height=False)
+        fenetre.geometry("150x70")
+        Label(fenetre, text="Entrez le nom du port").pack()
+        value = StringVar()
+        value.set(self.serialPortString)
+        entree = Entry(fenetre, textvariable=value, width=30)
+        entree.pack()
+        Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre,value.get())).pack()
+
+    def validerChangementPort(self,fen,text):
+        fen.destroy()
+        self.serialPortString = text
+        self.labelPort["text"] = "Port Actuel : " + text
+
     def passageModeManuel(self):
         self.boutonStart.grid_forget()
         self.boutonPause.grid_forget()
         self.boutonStop.grid_forget()
+        self.labelTempsRun.grid_forget()
         if self.affichageVertical:
-            self.boutonAvancer.grid(row=1, column=0, pady=5, sticky='N')
-            self.boutonGauche.grid(row=2, column=0, pady=5, sticky='N')
-            self.boutonDroite.grid(row=3, column=0, pady=5, sticky='N')
+            self.labelManuel["text"]= "Utilisez les flèches directionnelles \n  pour contrôler le robot"
+            self.labelManuel.grid(row=1, column=0, rowspan=3)
         else:
-            self.boutonAvancer.grid(row=1, column=0, pady=5, sticky='N')
-            self.boutonGauche.grid(row=1, column=1, pady=5, sticky='N')
-            self.boutonDroite.grid(row=1, column=2, pady=5, sticky='N')
+            self.labelManuel["text"] =  "Utilisez les flèches directionnelles pour contrôler le robot"
+            self.labelManuel.grid(row=1,column=0, columnspan=3)
         self.labelCommande["text"] = "Commande Manuelle"
 
         self.modeAutomatique = False
 
     def passageModeAuto(self):
-        self.boutonAvancer.grid_forget()
-        self.boutonGauche.grid_forget()
-        self.boutonDroite.grid_forget()
+        self.labelManuel.grid_forget()
         if self.affichageVertical:
             self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
             self.boutonPause.grid(row=2, column=0, pady=5, sticky='N')
             self.boutonStop.grid(row=3, column=0, pady=5, sticky='N')
+            self.labelTempsRun.grid(row=4, column=0, pady=5, sticky='N')
         else:
             self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
             self.boutonPause.grid(row=1, column=1, pady=5, sticky='N')
             self.boutonStop.grid(row=1, column=2, pady=5, sticky='N')
+            self.labelTempsRun.grid(row=1, column=3, pady=5, sticky='N')
         self.labelCommande["text"] = "Commande Automatique"
 
         self.modeAutomatique = True
@@ -202,7 +222,12 @@ class Application(tk.Tk):
         self.labelTempsRun.grid(row=1, column=3, pady=5, sticky='N')
         self.labelCommande.grid(row=0, column=0, columnspan=4)
         self.barreControle.grid(row=1, sticky='NEWS')
+        self.labelEtatConnexion.grid(row=0, column=0)
+        self.labelEtatScan.grid(row=0, column=1)
+        self.labelPort.grid(row=1, column=0)
+        self.labelFreqDenvoie.grid(row=1, column=1)
 
+        '''      CONFIGURATION DES LIGNES & COLONES     '''
         self.barreControle.grid_columnconfigure(1, weight=1)
         self.barreControle.grid_columnconfigure(0, weight=1)
         self.barreControle.grid_rowconfigure(0, weight=1)
@@ -214,6 +239,13 @@ class Application(tk.Tk):
         self.telecomande.grid_columnconfigure(3, weight=2)
         self.telecomande.grid_rowconfigure(0, weight=1)
         self.telecomande.grid_rowconfigure(1, weight=1)
+
+        self.caseEtat.grid_rowconfigure(0, weight=1)
+        self.caseEtat.grid_rowconfigure(1, weight=1)
+        self.caseEtat.grid_rowconfigure(2, weight=0)
+        self.caseEtat.grid_rowconfigure(3, weight=0)
+        self.caseEtat.grid_columnconfigure(0, weight=1)
+        self.caseEtat.grid_columnconfigure(1, weight=1)
 
         '''      CONFIGURATION DES LIGNES & COLONES DE LA FENETRE DE BASE      '''
         self.grid_rowconfigure(0, weight=10)
@@ -231,7 +263,12 @@ class Application(tk.Tk):
         self.labelTempsRun.grid(row=4, column=0, pady=5, sticky='N')
         self.labelCommande.grid(row=0, column=0)
         self.barreControle.grid(row=0, column=1, sticky='NEWS')
+        self.labelEtatConnexion.grid(row=0, column=0)
+        self.labelEtatScan.grid(row=1, column=0)
+        self.labelPort.grid(row=2, column=0)
+        self.labelFreqDenvoie.grid(row=3, column=0)
 
+        '''      CONFIGURATION DES LIGNES & COLONES     '''
         self.barreControle.grid_columnconfigure(0, weight=1)
         self.barreControle.grid_columnconfigure(1, weight=0)
         self.barreControle.grid_rowconfigure(0, weight=1)
@@ -242,6 +279,16 @@ class Application(tk.Tk):
         self.telecomande.grid_rowconfigure(2, weight=1)
         self.telecomande.grid_rowconfigure(3, weight=1)
         self.telecomande.grid_columnconfigure(0, weight=1)
+        self.telecomande.grid_columnconfigure(1, weight=0)
+        self.telecomande.grid_columnconfigure(2, weight=0)
+        self.telecomande.grid_columnconfigure(3, weight=0)
+
+        self.caseEtat.grid_rowconfigure(0, weight=1)
+        self.caseEtat.grid_rowconfigure(1, weight=1)
+        self.caseEtat.grid_rowconfigure(2, weight=1)
+        self.caseEtat.grid_rowconfigure(3, weight=1)
+        self.caseEtat.grid_columnconfigure(0, weight=1)
+        self.caseEtat.grid_columnconfigure(1, weight=0)
 
         '''      CONFIGURATION DES LIGNES & COLONES DE LA FENETRE DE BASE      '''
         self.grid_rowconfigure(0, weight=10)
@@ -277,23 +324,33 @@ class Application(tk.Tk):
 
     def clavier(self, event):
         self.touche = event.keysym
-        if self.nouvelleTouche:
-            if self.touche == "1" or self.touche == "2" or self.touche == "3" or self.touche == "4" or self.touche == "0":
-                emissionArduino(self.comEnv, str(self.touche))
+        if self.nouvelleTouche and not self.modeAutomatique:
+            if self.touche == "Up":
+                emissionArduino(self.comEnv, "1")
+                self.nouvelleTouche = False
+            elif self.touche == "Down":
+                emissionArduino(self.comEnv, "0")
+                self.nouvelleTouche = False
+            elif self.touche == "Right":
+                emissionArduino(self.comEnv, "2")
+                self.nouvelleTouche = False
+            elif self.touche == "Left":
+                emissionArduino(self.comEnv, "3")
                 self.nouvelleTouche = False
 
-    def resetTouche(self,event):
-        self.touche='4'
+    def resetTouche(self, event):
+        self.touche = '4'
         self.nouvelleTouche = True
-        emissionArduino(self.comEnv, str(self.touche))
+        if not self.modeAutomatique:
+            emissionArduino(self.comEnv, str(self.touche))
 
     def fermer(self):
         self.destroy()
         self.stop = True
 
+
 if __name__ == "__main__":
     app = Application()
     app.title("Rammus Scanning")
-    # EcranChargement = ecranChargement.EcranChargement()
-    # ecranChargement.mainloop()
+    photo = PhotoImage(file='../img/logo.png')
     app.mainloop()
