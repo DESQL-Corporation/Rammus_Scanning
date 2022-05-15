@@ -45,9 +45,13 @@ class Application(tk.Tk):
         self.stop = True
         self.nouvelleTouche = True
         self.serialPortString = SERIALPORT_ENV
+        self.coord_precendente_x = 0
+        self.coord_precendente_y = 0
+        self.coord_suivante_x = 0
+        self.coord_suivante_y = 0
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
-        self.canvas = Canvas(self, background='ivory')
+        self.canvas = Canvas(self, background='ivory', borderwidth=0, highlightthickness=0)
         self.barreControle = Frame(self, background='grey')
         self.canvas.focus_set()
         self.canvas.bind("<KeyPress>", self.clavier)
@@ -67,7 +71,8 @@ class Application(tk.Tk):
         '''     INITIALISATION DES ZONES DE TEXTES DE LA BARRE DE CONTROLE    '''
         self.labelTempsRun = Label(self.telecomande, text="Temps : 00.00.00", background="gray")
         self.labelCommande = Label(self.telecomande, text="Commande Automatique", fg="black", bg="gray")
-        self.labelManuel = Label(self.telecomande, text="Utilisez les flèches directionnelles pour contrôler le robot",fg="black", bg="gray")
+        self.labelManuel = Label(self.telecomande, text="Utilisez les flèches directionnelles pour contrôler le robot",
+                                 fg="black", bg="gray")
 
         '''     INITIALISATION DES ZONES DE TEXTES DE LA CASE D'ETAT    '''
         self.labelEtatConnexion = Label(self.caseEtat, text="Etat de la connexion : déconnecté", bg="white")
@@ -86,11 +91,19 @@ class Application(tk.Tk):
         self.menuBar = Menu(self)
         self.initialisationMenu()
 
+
     def alert(self):
         showinfo("alerte", "Bravo!")
 
     def alertPerso(self, message):
         showinfo("alerte", message)
+
+    def dessiner(self,x1, y1, x2, y2):
+        self.canvas.create_line(x1, y1, x2, y2, width=" 5",
+                                fill="black")
+
+    def decodageTrame(self):
+        print("Voir pour le format de la trame a decoder\n")
 
     def connexionRobot(self, fileMenu):
         # Thread(target=ecranChargement.start(photo)).start()
@@ -117,6 +130,10 @@ class Application(tk.Tk):
             try:
                 self.recept = recpetionArduino(self.comRecep)
                 print(self.stop, " : ", self.recept)
+                self.decodageTrame()
+                self.coord_precendente_x = self.coord_suivante_x
+                self.coord_precendente_y = self.coord_suivante_y
+                self.dessiner(self.coord_precedente_x, self.coord_precedente_y, self.coord_suivante_x, self.coord_suivante_y)
             except:
                 print(sys.exc_info()[0])
                 self.alertPerso(message="Erreur de connexion")
@@ -162,9 +179,9 @@ class Application(tk.Tk):
         value.set(self.serialPortString)
         entree = Entry(fenetre, textvariable=value, width=30)
         entree.pack()
-        Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre,value.get())).pack()
+        Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre, value.get())).pack()
 
-    def validerChangementPort(self,fen,text):
+    def validerChangementPort(self, fen, text):
         fen.destroy()
         self.serialPortString = text
         self.labelPort["text"] = "Port Actuel : " + text
@@ -175,11 +192,11 @@ class Application(tk.Tk):
         self.boutonStop.grid_forget()
         self.labelTempsRun.grid_forget()
         if self.affichageVertical:
-            self.labelManuel["text"]= "Utilisez les flèches directionnelles \n  pour contrôler le robot"
+            self.labelManuel["text"] = "Utilisez les flèches directionnelles \n  pour contrôler le robot"
             self.labelManuel.grid(row=1, column=0, rowspan=3)
         else:
-            self.labelManuel["text"] =  "Utilisez les flèches directionnelles pour contrôler le robot"
-            self.labelManuel.grid(row=1,column=0, columnspan=3)
+            self.labelManuel["text"] = "Utilisez les flèches directionnelles pour contrôler le robot"
+            self.labelManuel.grid(row=1, column=0, columnspan=3)
         self.labelCommande["text"] = "Commande Manuelle"
 
         self.modeAutomatique = False
