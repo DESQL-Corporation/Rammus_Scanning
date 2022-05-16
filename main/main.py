@@ -10,15 +10,14 @@ from threading import Thread
 
 import ecranChargement
 
-SERIALPORT_RECEP = 'COM4'
-SERIALPORT_ENV = 'COM3'
+SERIALPORT = 'COM4'
 BAUDRATE = 9600
 photo = None
 
 
-def ouvrir_liaisonArduino(SERIALPORT):
-    print("Recherche d'un port serie...")
-    com_arduino = serial.Serial(port=SERIALPORT, baudrate=BAUDRATE, timeout=1)
+def ouvrir_liaisonArduino(ser):
+    print("Recherche d'un port serie au ", ser)
+    com_arduino = serial.Serial(port=ser, baudrate=BAUDRATE, timeout=1)
     return com_arduino
 
 
@@ -39,15 +38,19 @@ class Application(tk.Tk):
         self.iconbitmap('../img/logo.ico')
         self.grid()
 
-        self.comRecep, self.comEnv, self.recept, self.thread, self.touche = None, None, None, None, '-1'
+        self.com, self.recept, self.thread, self.touche = None, None, None, '-1'
         self.affichageVertical = False
         self.modeAutomatique = True
         self.stop = True
         self.nouvelleTouche = True
-        self.serialPortString = SERIALPORT_ENV
+        self.serialPortString = SERIALPORT
+        self.coord_precedente_x = 0
+        self.coord_precedente_y = 0
+        self.coord_suivante_x = 0
+        self.coord_suivante_y = 0
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
-        self.canvas = Canvas(self, background='ivory')
+        self.canvas = Canvas(self, background='ivory', borderwidth=0, highlightthickness=0)
         self.barreControle = Frame(self, background='grey')
         self.canvas.focus_set()
         self.canvas.bind("<KeyPress>", self.clavier)
@@ -67,12 +70,13 @@ class Application(tk.Tk):
         '''     INITIALISATION DES ZONES DE TEXTES DE LA BARRE DE CONTROLE    '''
         self.labelTempsRun = Label(self.telecomande, text="Temps : 00.00.00", background="gray")
         self.labelCommande = Label(self.telecomande, text="Commande Automatique", fg="black", bg="gray")
-        self.labelManuel = Label(self.telecomande, text="Utilisez les flèches directionnelles pour contrôler le robot",fg="black", bg="gray")
+        self.labelManuel = Label(self.telecomande, text="Utilisez les flèches directionnelles pour contrôler le robot",
+                                 fg="black", bg="gray")
 
         '''     INITIALISATION DES ZONES DE TEXTES DE LA CASE D'ETAT    '''
         self.labelEtatConnexion = Label(self.caseEtat, text="Etat de la connexion : déconnecté", bg="white")
         self.labelEtatScan = Label(self.caseEtat, text="Etat du scan : en attente", bg="white")
-        self.labelPort = Label(self.caseEtat, text="Port Actuel : COM3", bg="white")
+        self.labelPort = Label(self.caseEtat, text="Port Actuel : COM4", bg="white")
         self.labelFreqDenvoie = Label(self.caseEtat, text="Fréquence d'émission : 9600", bg="white")
 
         '''     PLACEMENT DES ELEMENTS SUR LA FENETRE    '''
@@ -92,24 +96,33 @@ class Application(tk.Tk):
     def alertPerso(self, message):
         showinfo("alerte", message)
 
-    def threadConnexion(self,fileMenu):
+    def threadConnexion(self, fileMenu):
         try:
-            self.comRecep = ouvrir_liaisonArduino(SERIALPORT_RECEP)
-            self.comEnv = ouvrir_liaisonArduino(self.serialPortString)
+            self.com = ouvrir_liaisonArduino(self.serialPortString)
             self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
             self.thread.start()
             self.stop = False
-            ecranChargement.CONTINUE = False
             fileMenu.entryconfigure(1, label="Se déconnecter")
         except:
             time.sleep(5)
             print(sys.exc_info()[0])
-            ecranChargement.CONTINUE = False
             self.alertPerso(message="Impossible de se connecter")
-        ecranChargement.CONTINUE = True
+        ecranChargement.CONTINUE = False
+
+    def dessiner(self, x1, y1, x2, y2):
+        self.canvas.create_line(x1, y1, x2, y2, width=" 5",
+                                fill="black")
+
+    def decodageTrame(self):
+        print(self.recept)
+        tab = str(self.recept).split("$")
+        print(tab)
+        self.coord_suivante_x = tab[1]
+        self.coord_suivante_y = tab[2]
 
     def connexionRobot(self, fileMenu):
         if self.stop:
+            ecranChargement.CONTINUE = True
             Thread(target=ecranChargement.start, args=(photo,)).start()
             Thread(target=self.threadConnexion, args=(fileMenu,)).start()
         else:
@@ -120,18 +133,23 @@ class Application(tk.Tk):
         self.canvas.focus_set()
         self.canvas.bind("<Key>", self.clavier)
         self.touche = '4'
+        self.labelEtatConnexion["text"] = "connecté"
         while not self.stop:
             try:
-                self.recept = recpetionArduino(self.comRecep)
-                print(self.stop, " : ", self.recept)
+                self.recept = recpetionArduino(self.com)
+                print(self.stop, " : ", self.recept, ", ", len(self.recept))
+                if len(self.recept)>3:
+                    self.coord_precedente_x = self.coord_suivante_x
+                    self.coord_precedente_y = self.coord_suivante_y
+                    self.decodageTrame()
+                    self.dessiner(self.coord_precedente_x, self.coord_precedente_y, self.coord_suivante_x, self.coord_suivante_y)
             except:
                 print(sys.exc_info()[0])
                 self.alertPerso(message="Erreur de connexion")
                 self.stop = True
                 fileMenu.entryconfigure(1, label="Se connecter")
-
-        self.comRecep.close()
-        self.comEnv.close()
+        self.labelEtatConnexion["text"] = "déconnecté"
+        self.com.close()
 
     def initialisationMenu(self):
         menuFile = Menu(self.menuBar, tearoff=0)
@@ -169,9 +187,9 @@ class Application(tk.Tk):
         value.set(self.serialPortString)
         entree = Entry(fenetre, textvariable=value, width=30)
         entree.pack()
-        Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre,value.get())).pack()
+        Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre, value.get())).pack()
 
-    def validerChangementPort(self,fen,text):
+    def validerChangementPort(self, fen, text):
         fen.destroy()
         self.serialPortString = text
         self.labelPort["text"] = "Port Actuel : " + text
@@ -182,13 +200,15 @@ class Application(tk.Tk):
         self.boutonStop.grid_forget()
         self.labelTempsRun.grid_forget()
         if self.affichageVertical:
-            self.labelManuel["text"]= "Utilisez les flèches directionnelles \n  pour contrôler le robot"
+            self.labelManuel["text"] = "Utilisez les flèches directionnelles \n  pour contrôler le robot"
             self.labelManuel.grid(row=1, column=0, rowspan=3)
         else:
-            self.labelManuel["text"] =  "Utilisez les flèches directionnelles pour contrôler le robot"
-            self.labelManuel.grid(row=1,column=0, columnspan=3)
+            self.labelManuel["text"] = "Utilisez les flèches directionnelles pour contrôler le robot"
+            self.labelManuel.grid(row=1, column=0, columnspan=3)
         self.labelCommande["text"] = "Commande Manuelle"
 
+        if not self.stop :
+            emissionArduino(self.com,"m")
         self.modeAutomatique = False
 
     def passageModeAuto(self):
@@ -205,6 +225,8 @@ class Application(tk.Tk):
             self.labelTempsRun.grid(row=1, column=3, pady=5, sticky='N')
         self.labelCommande["text"] = "Commande Automatique"
 
+        if not self.stop :
+            emissionArduino(self.com,"a")
         self.modeAutomatique = True
 
     def changementConfig(self):
@@ -333,31 +355,30 @@ class Application(tk.Tk):
         self.touche = event.keysym
         if self.nouvelleTouche and not self.modeAutomatique:
             if self.touche == "Up":
-                emissionArduino(self.comEnv, "1")
+                emissionArduino(self.com, "0")
                 self.nouvelleTouche = False
             elif self.touche == "Down":
-                emissionArduino(self.comEnv, "0")
+                emissionArduino(self.com, "1")
                 self.nouvelleTouche = False
             elif self.touche == "Right":
-                emissionArduino(self.comEnv, "2")
+                emissionArduino(self.com, "2")
                 self.nouvelleTouche = False
             elif self.touche == "Left":
-                emissionArduino(self.comEnv, "3")
+                emissionArduino(self.com, "3")
                 self.nouvelleTouche = False
 
     def resetTouche(self, event):
         self.touche = '4'
         self.nouvelleTouche = True
         if not self.modeAutomatique:
-            emissionArduino(self.comEnv, str(self.touche))
+            emissionArduino(self.com, str(self.touche))
 
     def fermer(self):
         self.destroy()
         self.stop = True
 
-
 if __name__ == "__main__":
     app = Application()
     app.title("Rammus Scanning")
-    photo = PhotoImage(file='../img/logo.png')
+    photo = PhotoImage(file='../img/maquetteLogiciel/vago.png')
     app.mainloop()
