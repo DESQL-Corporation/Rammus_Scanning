@@ -3,12 +3,15 @@ from tkinter import *
 from threading import Thread
 import time
 
+CONTINUE = True
 
 class EcranChargement(tk.Toplevel):
     def __init__(self):
         super().__init__()
-        self.posx = 0
-        self.posy = 0
+        self.posx = -80
+        self.posy = 100
+
+        self.grab_set()
 
         self.resizable(width=False,height=False)
         self.title("Connexion en cours...")
@@ -16,16 +19,15 @@ class EcranChargement(tk.Toplevel):
         self.canva.configure()
 
         self.canva.grid()
-        self.fin = False
 
     def start(self,photo):
-        print("zizi")
-        while not self.fin:
-            for i in range(5):
-                print(i)
-                time.sleep(1)
-                self.posx = self.posx+1
-            self.fin=True
+        while CONTINUE:
+            self.posx = self.posx+2
+            time.sleep(0.001)
+            self.canva.create_image(self.posx, self.posy, image=photo)
+            if self.posx == 600:
+                self.posx=0
+        self.destroy()
 
 
     def finChargement(self):
@@ -34,5 +36,5 @@ class EcranChargement(tk.Toplevel):
 def start(photo):
     ecranChargement = EcranChargement()
     ecranChargement.canva.create_image(ecranChargement.posx, ecranChargement.posy, image=photo)
-    print("oui")
     ecranChargement.start(photo)
+

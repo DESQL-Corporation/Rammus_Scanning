@@ -92,22 +92,29 @@ class Application(tk.Tk):
     def alertPerso(self, message):
         showinfo("alerte", message)
 
+    def threadConnexion(self,fileMenu):
+        try:
+            self.comRecep = ouvrir_liaisonArduino(SERIALPORT_RECEP)
+            self.comEnv = ouvrir_liaisonArduino(self.serialPortString)
+            self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
+            self.thread.start()
+            self.stop = False
+            ecranChargement.CONTINUE = False
+            fileMenu.entryconfigure(1, label="Se déconnecter")
+        except:
+            time.sleep(5)
+            print(sys.exc_info()[0])
+            ecranChargement.CONTINUE = False
+            self.alertPerso(message="Impossible de se connecter")
+        ecranChargement.CONTINUE = True
+
     def connexionRobot(self, fileMenu):
-        # Thread(target=ecranChargement.start(photo)).start()
         if self.stop:
-            try:
-                self.comRecep = ouvrir_liaisonArduino(SERIALPORT_RECEP)
-                self.comEnv = ouvrir_liaisonArduino(self.serialPortString)
-                self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
-                self.thread.start()
-                self.stop = False
-                fileMenu.entryconfigure(1, label="Se déconnecter")
-            except:
-                print(sys.exc_info()[0])
-                self.alertPerso(message="Impossible de se connecter")
+            Thread(target=ecranChargement.start, args=(photo,)).start()
+            Thread(target=self.threadConnexion, args=(fileMenu,)).start()
         else:
             self.stop = True
-            fileMenu.entryconfigure(1, label="Se conencter")
+            fileMenu.entryconfigure(1, label="Se connecter")
 
     def recupDonnee(self, fileMenu):
         self.canvas.focus_set()
