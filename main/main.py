@@ -10,7 +10,7 @@ from threading import Thread
 
 import ecranChargement
 
-SERIALPORT = 'COM4'
+SERIALPORT = 'COM3'
 BAUDRATE = 9600
 photo = None
 
@@ -43,11 +43,12 @@ class Application(tk.Tk):
         self.modeAutomatique = True
         self.stop = True
         self.nouvelleTouche = True
+        self.nomRoom = "defaultRoom"
         self.serialPortString = SERIALPORT
-        self.coord_precedente_x = 0
-        self.coord_precedente_y = 0
-        self.coord_suivante_x = 0
-        self.coord_suivante_y = 0
+        self.coord_precedente_x = 500
+        self.coord_precedente_y = 300
+        self.coord_suivante_x = 500
+        self.coord_suivante_y = 300
 
         '''     CREATION DES 2 BLOCS PRINCIPAUX    '''
         self.canvas = Canvas(self, background='ivory', borderwidth=0, highlightthickness=0)
@@ -62,9 +63,9 @@ class Application(tk.Tk):
 
         '''     INITIALISATION DES BOUTONS DE LA TELECOMANDE     '''
         self.boutonStart = Button(self.telecomande, text="Démarrer", fg="green", command=self.startModeAutomatique)
-        self.boutonPause = Button(self.telecomande, text="Mettre en Pause", fg="orange",
-                                  command=self.pauseModeAutomatique, state=DISABLED)
-        self.boutonStop = Button(self.telecomande, text="Stopper", fg="red", command=self.stopModeAutomatique,
+        self.labelAuto = Label(self.telecomande, text="Utilisez START pour lancer et PAUSE pour arréter", fg="black",
+                               bg="gray")
+        self.boutonStop = Button(self.telecomande, text="Stopper", fg="red", command=self.pauseModeAutomatique,
                                  state=DISABLED)
 
         '''     INITIALISATION DES ZONES DE TEXTES DE LA BARRE DE CONTROLE    '''
@@ -76,7 +77,7 @@ class Application(tk.Tk):
         '''     INITIALISATION DES ZONES DE TEXTES DE LA CASE D'ETAT    '''
         self.labelEtatConnexion = Label(self.caseEtat, text="Etat de la connexion : déconnecté", bg="white")
         self.labelEtatScan = Label(self.caseEtat, text="Etat du scan : en attente", bg="white")
-        self.labelPort = Label(self.caseEtat, text="Port Actuel : COM4", bg="white")
+        self.labelPort = Label(self.caseEtat, text="Port Actuel : COM3", bg="white")
         self.labelFreqDenvoie = Label(self.caseEtat, text="Fréquence d'émission : 9600", bg="white")
 
         '''     PLACEMENT DES ELEMENTS SUR LA FENETRE    '''
@@ -102,7 +103,7 @@ class Application(tk.Tk):
             self.thread = Thread(target=lambda: self.recupDonnee(fileMenu))
             self.thread.start()
             self.stop = False
-            fileMenu.entryconfigure(1, label="Se déconnecter")
+            fileMenu.entryconfigure(0, label="Se déconnecter")
         except:
             time.sleep(5)
             print(sys.exc_info()[0])
@@ -127,7 +128,7 @@ class Application(tk.Tk):
             Thread(target=self.threadConnexion, args=(fileMenu,)).start()
         else:
             self.stop = True
-            fileMenu.entryconfigure(1, label="Se connecter")
+            fileMenu.entryconfigure(0, label="Se connecter")
 
     def recupDonnee(self, fileMenu):
         self.canvas.focus_set()
@@ -138,11 +139,12 @@ class Application(tk.Tk):
             try:
                 self.recept = recpetionArduino(self.com)
                 print(self.stop, " : ", self.recept, ", ", len(self.recept))
-                if len(self.recept)>3:
+                if len(self.recept) > 3:
                     self.coord_precedente_x = self.coord_suivante_x
                     self.coord_precedente_y = self.coord_suivante_y
                     self.decodageTrame()
-                    self.dessiner(self.coord_precedente_x, self.coord_precedente_y, self.coord_suivante_x, self.coord_suivante_y)
+                    self.dessiner(self.coord_precedente_x, self.coord_precedente_y, self.coord_suivante_x,
+                                  self.coord_suivante_y)
             except:
                 print(sys.exc_info()[0])
                 self.alertPerso(message="Erreur de connexion")
@@ -153,7 +155,6 @@ class Application(tk.Tk):
 
     def initialisationMenu(self):
         menuFile = Menu(self.menuBar, tearoff=0)
-        menuFile.add_command(label="Nouveau", command=self.alert)
         menuFile.add_command(label="Se connecter", command=lambda: self.connexionRobot(menuFile))
         menuFile.add_command(label="Changer Configuration", command=self.changementConfig)
         menuFile.add_separator()
@@ -166,11 +167,9 @@ class Application(tk.Tk):
         menuEdit.add_command(label="Changer le port de connexion", command=self.changerPort)
 
         menuScan = Menu(self.menuBar, tearoff=0)
-        menuScan.add_command(label="Run", command=self.alert)
-        menuScan.add_command(label="Stop", command=self.alert)
-        menuScan.add_command(label="Pause", command=self.alert)
-        menuScan.add_separator()
-        menuScan.add_command(label="Export Room", command=self.alert)
+        menuScan.add_command(label="Changer le nom de la Room", command=self.changerRoom)
+        menuScan.add_command(label="Supprimer Room", command=self.clearCanva)
+        menuScan.add_command(label="Export Room", command=self.exporterPNG)
 
         self.menuBar.add_cascade(label="  Window  ", menu=menuFile)
         self.menuBar.add_cascade(label="  Edit  ", menu=menuEdit)
@@ -189,6 +188,21 @@ class Application(tk.Tk):
         entree.pack()
         Button(fenetre, text="ok", command=lambda: self.validerChangementPort(fenetre, value.get())).pack()
 
+    def validerChangementRoom(self, fen, text):
+        fen.destroy()
+        self.nomRoom = text
+
+    def changerRoom(self):
+        fenetre = tk.Toplevel()
+        fenetre.resizable(width=False, height=False)
+        fenetre.geometry("150x70")
+        Label(fenetre, text="Entrez le nom de la salle").pack()
+        value = StringVar()
+        value.set(self.nomRoom)
+        entree = Entry(fenetre, textvariable=value, width=30)
+        entree.pack()
+        Button(fenetre, text="ok", command=lambda: self.validerChangementRoom(fenetre, value.get())).pack()
+
     def validerChangementPort(self, fen, text):
         fen.destroy()
         self.serialPortString = text
@@ -196,7 +210,7 @@ class Application(tk.Tk):
 
     def passageModeManuel(self):
         self.boutonStart.grid_forget()
-        self.boutonPause.grid_forget()
+        self.labelAuto.grid_forget()
         self.boutonStop.grid_forget()
         self.labelTempsRun.grid_forget()
         if self.affichageVertical:
@@ -207,26 +221,26 @@ class Application(tk.Tk):
             self.labelManuel.grid(row=1, column=0, columnspan=3)
         self.labelCommande["text"] = "Commande Manuelle"
 
-        if not self.stop :
-            emissionArduino(self.com,"m")
+        if not self.stop:
+            emissionArduino(self.com, "m")
         self.modeAutomatique = False
 
     def passageModeAuto(self):
         self.labelManuel.grid_forget()
         if self.affichageVertical:
             self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
-            self.boutonPause.grid(row=2, column=0, pady=5, sticky='N')
+            self.labelAuto.grid(row=2, column=0, pady=5, sticky='N')
             self.boutonStop.grid(row=3, column=0, pady=5, sticky='N')
             self.labelTempsRun.grid(row=4, column=0, pady=5, sticky='N')
         else:
             self.boutonStart.grid(row=1, column=0, pady=5, sticky='N')
-            self.boutonPause.grid(row=1, column=1, pady=5, sticky='N')
+            self.labelAuto.grid(row=1, column=1, pady=5, sticky='N')
             self.boutonStop.grid(row=1, column=2, pady=5, sticky='N')
             self.labelTempsRun.grid(row=1, column=3, pady=5, sticky='N')
         self.labelCommande["text"] = "Commande Automatique"
 
-        if not self.stop :
-            emissionArduino(self.com,"a")
+        if not self.stop:
+            emissionArduino(self.com, "a")
         self.modeAutomatique = True
 
     def changementConfig(self):
@@ -328,28 +342,26 @@ class Application(tk.Tk):
         self.affichageVertical = True
 
     def startModeAutomatique(self):
-        self.labelTempsRun["text"] = "Temps 10.00.00"
+        if not self.stop:
+            self.labelTempsRun["text"] = "Temps 10.00.00"
 
-        '''    MISE A JOUR GRAPHIQUE   '''
-        self.boutonStart["state"] = DISABLED
-        self.boutonStop["state"] = ACTIVE
-        self.boutonPause["state"] = ACTIVE
+            '''    MISE A JOUR GRAPHIQUE   '''
+            self.boutonStart["state"] = DISABLED
+            self.boutonStop["state"] = ACTIVE
+            self.labelEtatScan["text"] = "Etat du scan : en cours"
+
+            emissionArduino(self.com, "p")
 
     def pauseModeAutomatique(self):
-        self.labelTempsRun["text"] = "Temps 10.00.00"
+        if not self.stop:
+            self.labelTempsRun["text"] = "Temps 10.00.00"
 
-        '''    MISE A JOUR GRAPHIQUE   '''
-        self.boutonStart["state"] = ACTIVE
-        self.boutonStop["state"] = ACTIVE
-        self.boutonPause["state"] = DISABLED
+            '''    MISE A JOUR GRAPHIQUE   '''
+            self.boutonStart["state"] = ACTIVE
+            self.boutonStop["state"] = ACTIVE
+            self.labelEtatScan["text"] = "Etat du scan : arrété"
 
-    def stopModeAutomatique(self):
-        self.labelTempsRun["text"] = "Temps 10.00.00"
-
-        '''    MISE A JOUR GRAPHIQUE   '''
-        self.boutonStart["state"] = ACTIVE
-        self.boutonStop["state"] = DISABLED
-        self.boutonPause["state"] = DISABLED
+            emissionArduino(self.com, "s")
 
     def clavier(self, event):
         self.touche = event.keysym
@@ -361,10 +373,10 @@ class Application(tk.Tk):
                 emissionArduino(self.com, "1")
                 self.nouvelleTouche = False
             elif self.touche == "Right":
-                emissionArduino(self.com, "2")
+                emissionArduino(self.com, "3")
                 self.nouvelleTouche = False
             elif self.touche == "Left":
-                emissionArduino(self.com, "3")
+                emissionArduino(self.com, "2")
                 self.nouvelleTouche = False
 
     def resetTouche(self, event):
@@ -374,8 +386,15 @@ class Application(tk.Tk):
             emissionArduino(self.com, str(self.touche))
 
     def fermer(self):
-        self.destroy()
         self.stop = True
+        self.destroy()
+
+    def exporterPNG(self):
+        self.canvas.postscript(file=self.nomRoom + ".eps", colormode='color')
+
+    def clearCanva(self):
+        self.canvas.delete("all")
+
 
 if __name__ == "__main__":
     app = Application()
