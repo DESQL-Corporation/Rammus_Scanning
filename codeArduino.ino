@@ -22,13 +22,13 @@ Servo portS2;
 int EtatPresent = 0;
 int EtatSuivant = 0;
 int boucle = 0;
-int mode = 1;
+int mode = 0;
 //les entrees
 int a , b, tempo, tempoMax;
 char val;
 boolean md, mf, mfExt;
 //les sorties
-boolean g, d, av, ar;
+boolean g, d, av, ar,  dessin;
 //variables de positions
 int x;
 int y;
@@ -36,7 +36,7 @@ int orientation;
 
 // fonctions de deplacement
 void envoie_trame(int xp, int yp) {
-  String message = '$' + (String)xp + '$' + (String)yp + '$';
+  String message = '$' + (String)xp + '$' + (String)yp + '$' + (String)orientation + '$';
   Bluetooth.println(message);
 }
 
@@ -49,7 +49,7 @@ void robot_stop() {
 
 void robot_forward() {
   portS1.writeMicroseconds(1800);
-  portS2.writeMicroseconds(1860);
+  portS2.writeMicroseconds(1805);
 }
 
 void robot_backward() {
@@ -58,8 +58,8 @@ void robot_backward() {
 }
 
 void robot_left_turn() {
-  portS1.writeMicroseconds(1300);
-  portS2.writeMicroseconds(1900);
+  portS1.writeMicroseconds(1250);
+  portS2.writeMicroseconds(1950);
 }
 
 void robot_right_turn() {
@@ -72,8 +72,8 @@ void setup()
   //var
   tempo = 0;
   tempoMax = 4;
-  x = 250;
-  y = 250;
+  x = 500;
+  y = 300;
   orientation = NORD;
   //init
   Serial.begin(baudrate);
@@ -86,24 +86,19 @@ void setup()
 
 void loop()
 {
-  Serial.print(String(mode));
   if (mode == 0) {
     mode_auto();
   } else {
     mode_manuel();
   }
-
-  delay(200);
 }
 
 void mode_manuel() {
   robot_stop();
   val = 'o';
   while (mode) {
-    Serial.print("ATTENTE");
     if (Bluetooth.available()) {
       val = Bluetooth.read();
-      Serial.println(val);
       if (val == '0') { //avance
         portS1.writeMicroseconds(1750);
         portS2.writeMicroseconds(1750);
@@ -143,6 +138,9 @@ void mode_auto() {
       if (val == 'p') {
         boucle = 1;
       }
+      if (val == 'm') {
+        mode = 1;
+      }
     }
   } if (boucle == 1) {
     if (Bluetooth.available()) {
@@ -152,52 +150,48 @@ void mode_auto() {
       }
     }
     a = sonar_face.ping_cm();
-  b = sonar_droite.ping_cm();
+    b = sonar_droite.ping_cm();
 
-  mf = ((a < 60) && (a > 0)); // Capte un mur devant
-  md = ((b < 50) && (b > 0)); // Capte un mur a droite
+    mf = ((a < 50) && (a > 0)); // Capte un mur devant
+    md = ((b < 50) && (b > 0)); // Capte un mur a droite
 
-  // bloc F
-  switch (EtatPresent) { 
-    case 0 : //Avance jusqu'a trouver un mur devant
-       if (mf) {
+    // bloc F
+    switch (EtatPresent) {
+      case 0 : //Avance jusqu'a trouver un mur devant
+        if (mf) {
           robot_stop();
           EtatSuivant = 2;
-       }
-       break;
-     
-    case 1 : 
-      if (mf) {
-        EtatSuivant = 2;
-        robot_stop();
-      }
-      else if (!mf && !md) {
-        EtatSuivant = 4;
-        robot_stop();
-      }
-      break;
+        }
+        break;
 
-    case 2 : //Tourne a gauche
+      case 1 :
+        if (mf) {
+          EtatSuivant = 2;
+          robot_stop();
+        }
+        else if (!mf && !md) {
+          EtatSuivant = 4;
+          robot_stop();
+        }
+        break;
+
+      case 2 : //Tourne a gauche
         tempo ++;
         if (tempo >= tempoMax) {
-          switch (orientation){
+          switch (orientation) {
             case NORD :
               orientation = OUEST;
               break;
-              
+
             case OUEST :
               orientation = SUD;
               break;
-              
+
             case SUD :
               orientation = EST;
               break;
-              
+
             case EST :
-              orientation = NORD;
-              break;
-              
-            default : 
               orientation = NORD;
               break;
           }
@@ -207,88 +201,86 @@ void mode_auto() {
         }
         break;
 
-        
-    case 3 : 
-      if (md) {
-        EtatSuivant = 1;
-        robot_stop();
-      }
-      if (mf) {
-        EtatSuivant = 2;
-        robot_stop();
-      }
-      break;
-      
-    case 4 : 
-      tempo ++;
-      if (tempo >= tempoMax) {
-        switch (orientation){
+
+      case 3 :
+        if (md) {
+          EtatSuivant = 1;
+          robot_stop();
+        }
+        if (mf) {
+          EtatSuivant = 2;
+          robot_stop();
+        }
+        break;
+
+      case 4 :
+        tempo ++;
+        if (tempo >= tempoMax) {
+          switch (orientation) {
             case NORD :
-              orientation = OUEST;
-              break;
-              
-            case OUEST :
-              orientation = SUD;
-              break;
-              
-            case SUD :
               orientation = EST;
               break;
-              
-            case EST :
+
+            case OUEST :
               orientation = NORD;
               break;
-              
-            default : 
-              orientation = NORD;
+
+            case SUD :
+              orientation = OUEST;
+              break;
+
+            case EST :
+              orientation = SUD;
               break;
           }
-        robot_stop();
-        EtatSuivant = 3;
-        tempo = 0;
-      }
-      break;
-      
-    default:
-      exit(1);
-      break;
-  }
-  //bloc M
-  EtatPresent = EtatSuivant;
-  //bloc G
+          robot_stop();
+          EtatSuivant = 3;
+          tempo = 0;
+        }
+        break;
 
-  av = ((EtatPresent == 0) || (EtatPresent == 1) || (EtatPresent == 3 ));
-  g = (EtatPresent == 2);
-  d = (EtatPresent == 4);
-
-  // bloc sortie
-  if (av) {
-    robot_forward();
-    switch (orientation){
-            case NORD :
-              y = y--;
-              break;
-              
-            case OUEST :
-              x = x--;
-              break;
-              
-            case SUD :
-              y = y++;
-              break;
-              
-            case EST :
-              x = x++;
-              break;
-              
-            default :
-              break;
+      default:
+        exit(1);
+        break;
     }
-    envoie_trame(x,y);
-  }
-  if (g) robot_left_turn();
-  if (d) robot_right_turn();
-  
-  delay(100);
+    //bloc M
+    EtatPresent = EtatSuivant;
+    //bloc G
+
+    av = ((EtatPresent == 0) || (EtatPresent == 1) || (EtatPresent == 3 ));
+    dessin = ((EtatPresent == 1) || (EtatPresent == 3 ));
+    g = (EtatPresent == 2);
+    d = (EtatPresent == 4);
+
+    if (av) robot_forward();
+    
+    // bloc sortie
+    if (dessin) {
+      switch (orientation) {
+        case NORD :
+          y = y - 2;
+          break;
+
+        case OUEST :
+          x = x - 2;
+          break;
+
+        case SUD :
+          y = y + 2;
+          break;
+
+        case EST :
+          x = x + 2;
+          break;
+
+        default :
+          break;
+      }
+      envoie_trame(x, y);
+    }
+    if (g) robot_left_turn();
+    if (d) robot_right_turn();
+
+    delay(100);
   }
 }
